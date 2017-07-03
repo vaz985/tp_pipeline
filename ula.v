@@ -79,7 +79,7 @@ always@(IR, m_IR, w_IR, in_1, in_2, in_immediate, reset) begin
     end
   end
   // addi
-  else if( IR[31:26] == 6'b001000 ) begin
+  else if( IR[31:26] == 6'b001000 ) begin	 
     if( SB[IR[25:21]] == 01 ) begin
 	   saida <= saidaULA_mm + in_immediate;  
 	 end
@@ -90,7 +90,7 @@ always@(IR, m_IR, w_IR, in_1, in_2, in_immediate, reset) begin
 	 else begin
 	   saida <= in_1 + in_immediate;
 	 end
-    SB[IR[20:16]] <= 01;
+	 
 	 mem_dest <= 0;
   end
   //load

@@ -1,5 +1,5 @@
 module banco_de_registradores(
-
+  input clock, 
   input reset,
   // INDEX DOS REGISTRADORES BUSCADOS
   input[4:0] br_in_rs_decode,
@@ -11,17 +11,28 @@ module banco_de_registradores(
   // DADO Q VAI SER ESCRITO
   input wb_enable,
   input[4:0] br_in_dest_wb,
-  input[31:0] br_in_data
-
+  input[31:0] br_in_data,
+  
+  output[31:0] outdisplay0,
+  output[31:0] outdisplay1,
+  output[31:0] outdisplay2,
+  output[31:0] outdisplay3
+  
   // RETORNA A E B
 );
 
 reg [31:0] mem_pos [31:0];
 
+assign outdisplay0 = mem_pos[8];
+assign outdisplay1 = mem_pos[9];
+assign outdisplay2 = mem_pos[10];
+assign outdisplay3 = mem_pos[11];
+
+
 // RESET
-always@(wb_enable, reset, br_in_dest_wb) 
+always @(posedge clock) 
 begin
-  if(reset == 1'b1) begin
+  if(reset == 1) begin
     mem_pos[0] <= 32'b0;
     mem_pos[1] <= 32'b0;
     mem_pos[2] <= 32'b0;
@@ -54,15 +65,14 @@ begin
     mem_pos[29] <= 32'b0;
     mem_pos[30] <= 32'b0;
     mem_pos[31] <= 32'b0;
-    
-  end
-  else if(wb_enable == 1) begin
-    mem_pos[br_in_dest_wb] <= br_in_data;
-  end 
+	 end
+    else if(wb_enable == 1 && br_in_dest_wb != 4'b0000 ) begin
+      mem_pos[br_in_dest_wb] <= br_in_data;
+    end 
 end
 
 // ALWAYS DO DECODE
-always@(br_in_rs_decode, br_in_rt_decode)
+always @(br_in_rs_decode, br_in_rt_decode)
 begin
   br_out_R_rs <= mem_pos[br_in_rs_decode];
   br_out_R_rt <= mem_pos[br_in_rt_decode];

@@ -2,9 +2,6 @@ module mips_pipeline(
 
 	input			CLOCK_50,// Para a placa
 	input[3:0]		   KEY,
-	output[31:0] out_valor1,
-	output[31:0] out_valor2,
-	output[31:0] out_valor3,
 	output[8:0]		LEDG, // Para a placa
 	output[0:6]		HEX0, // Para a placa
 	output[0:6]		HEX1, // Para a placa
