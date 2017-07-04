@@ -78,10 +78,8 @@ wire[31:0] t1;
 wire[31:0] t2;
 wire[31:0] t3;
 
-displayDecoder H0(
-.entrada(t0),
-.saida(HEX0)
-);
+
+
 displayDecoder H1(
 .entrada(t1),
 .saida(HEX1)
@@ -90,10 +88,7 @@ displayDecoder H2(
 .entrada(t2),
 .saida(HEX2)
 );
-displayDecoder H3(
-.entrada(t3),
-.saida(HEX3)
-);
+
 
 
 // instanciando a memória de instruções (ROM)
@@ -106,6 +101,7 @@ mem_inst mem_i(
 
 
 // ULA DO EXECUTE
+reg[1:0] sb [31:0];
 
 assign ex_a = (
 //add/sub
@@ -126,7 +122,7 @@ assign ex_a = (
 //store
 ( execute_IR[31:26] == 6'b101011 )    
 )
-? dado_lido_1 : 0 ;
+? ( ( sb[ execute_IR[25:21] ] == 2'b01 || sb[ execute_IR[25:21] ] == 2'b10 ) ? ( (sb[ execute_IR[25:21] ] == 2'b01) ? mem_saidaULA : wb_saidaULA ) : dado_lido_1 ) : 0 ;
 
 assign ex_b = ( 
 //add/sub
@@ -141,7 +137,7 @@ execute_IR[31:26] == 6'b000000 && ( execute_IR[5:0] == 6'b100000 || execute_IR[5
 //load
 ( execute_IR[31:26] == 6'b100011 ) 
 ) 
-? dado_lido_2 : 0 ;
+? ( ( sb[ execute_IR[20:16] ] == 2'b01 || sb[ execute_IR[20:16] ] == 2'b10 ) ? ( ( sb[ execute_IR[20:16] ] == 2'b01 ) ? mem_saidaULA : wb_saidaULA ) : dado_lido_2 ) : 0 ;
 
 wire[9:0] mem_dest_ula;
 
@@ -151,12 +147,7 @@ ula ula_1(
 .in_2(ex_b),
 .in_immediate({{16{execute_IR[15]}}, execute_IR[15:0]}),
 .saida(saidaULA),
-.mem_dest(mem_dest_ula),
-.reset(rst),
-.m_IR(memory_IR),
-.w_IR(wback_IR),
-.saidaULA_mm(mem_saidaULA),
-.saidaULA_wb(wb_saidaULA)
+.mem_dest(mem_dest_ula)
 );
 
 
@@ -248,6 +239,8 @@ assign LEDG[0] = clock;
 
 assign rst = ( KEY[0] == 0 ) ? 1 : 0 ;
 
+integer i;
+
 // Controlador de escrita da memoria de dados
 
 always@(posedge clock) begin
@@ -258,6 +251,9 @@ always@(posedge clock) begin
     wback_IR   <= 32'b0;
 	 halt       <= 1'b1;
 	 PC         <= 10'b0;
+	 for (i=0;i<32;i=i+1) begin
+		sb[i] <= 0;
+	 end
   end
   else if(halt == 1'b1 && KEY[0] == 1) begin
     halt <= 1'b0;
@@ -293,12 +289,44 @@ always@(posedge clock) begin
       execute_IR <= 0; 	
 	 end
 	 
+	 // SB Control
+	 if( wback_IR[31:26] == 6'b000000 && ( wback_IR[5:0] == 6'b100000 || wback_IR[5:0] == 6'b100010 ) ) begin
+	   sb[ wback_IR[15:11] ] <= 00;
+	 end else
+	 if( wback_IR[31:26] == 6'b001000 ) begin
+	   sb[ wback_IR[20:16] ] <= 00;
+	 end
+	 
+	 //execute
+	 if( execute_IR[31:26] == 6'b000000 && ( execute_IR[5:0] == 6'b100000 || execute_IR[5:0] == 6'b100010 ) ) begin
+	   sb[ execute_IR[15:11] ] <= 01;
+	 end else
+    if( execute_IR[31:26] == 6'b001000 ) begin
+	   sb[ execute_IR[20:16] ] <= 01;
+    end   
+	 
+    //memory
+	 if( memory_IR[31:26] == 6'b000000 && ( memory_IR[5:0] == 6'b100000 || memory_IR[5:0] == 6'b100010 ) ) begin
+	   if ( (execute_IR[31:26] == 6'b001000 && execute_IR[15:11] == memory_IR[15:11]) || (execute_IR[31:26] == 6'b001000 && execute_IR[20:16] == memory_IR[15:11]) ) begin
+		  sb[ memory_IR[15:11] ] <= 01;
+	   end
+	   else begin
+	     sb[ memory_IR[15:11] ] <= 10;
+	   end
+	 end else
+	 if( memory_IR[31:26] == 6'b001000 ) begin
+      if ( (execute_IR[31:26] == 6'b001000 && execute_IR[20:16] == memory_IR[20:16]) || ( (execute_IR[31:26] == 6'b001000 && execute_IR[15:11] == memory_IR[20:16]) ) ) begin
+		  sb[ memory_IR[20:16] ] <= 01;
+	   end
+	   else begin
+	     sb[ memory_IR[20:16] ] <= 10;
+	   end
+	 end
+	 ////////////////////////////////////////////////////////////////////
 	 
 	 PC_execute <= PC_decode;
-	
     memory_IR <= execute_IR;
     wback_IR <= memory_IR;	
-   
   
     mem_saidaULA <= saidaULA;
 	 mm_dest_Reg <= mem_dest_ula;
