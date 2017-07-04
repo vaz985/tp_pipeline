@@ -260,8 +260,7 @@ always@(posedge clock) begin
 		execute_IR <= 0;
 		halt <= 1'b1;
 	 end
-	 else 
-	 if begin
+	 else begin
 	   PC <= PC + 1;
 		PC_decode <= PC;
 
