@@ -1,4 +1,4 @@
-module mips_pipeline(
+﻿module mips_pipeline(
 
 	input			CLOCK_50,// Para a placa
 	input[3:0]		   KEY,
