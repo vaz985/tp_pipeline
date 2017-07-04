@@ -1,4 +1,4 @@
-﻿module mips_pipeline(
+module mips_pipeline(
 
 	input			CLOCK_50,// Para a placa
 	input[3:0]		   KEY,
@@ -101,8 +101,6 @@ mem_inst mem_i(
 
 
 // ULA DO EXECUTE
-reg[1:0] sb [31:0];
-
 assign ex_a = (
 //add/sub
 ( execute_IR[31:26] == 6'b000000 && ( execute_IR[5:0] == 6'b100000 || execute_IR[5:0] == 6'b100010 ) )
@@ -122,7 +120,7 @@ assign ex_a = (
 //store
 ( execute_IR[31:26] == 6'b101011 )    
 )
-? ( ( sb[ execute_IR[25:21] ] == 2'b01 || sb[ execute_IR[25:21] ] == 2'b10 ) ? ( (sb[ execute_IR[25:21] ] == 2'b01) ? mem_saidaULA : wb_saidaULA ) : dado_lido_1 ) : 0 ;
+? dado_lido_1 : 0 ;
 
 assign ex_b = ( 
 //add/sub
@@ -137,7 +135,7 @@ execute_IR[31:26] == 6'b000000 && ( execute_IR[5:0] == 6'b100000 || execute_IR[5
 //load
 ( execute_IR[31:26] == 6'b100011 ) 
 ) 
-? ( ( sb[ execute_IR[20:16] ] == 2'b01 || sb[ execute_IR[20:16] ] == 2'b10 ) ? ( ( sb[ execute_IR[20:16] ] == 2'b01 ) ? mem_saidaULA : wb_saidaULA ) : dado_lido_2 ) : 0 ;
+? dado_lido_2 : 0 ;
 
 wire[9:0] mem_dest_ula;
 
@@ -226,20 +224,11 @@ jump_beq j_b(
 .beq(beq_enable)
 );
 
-wire stall;
-stall s(
-.decode(decode_IR),
-.execute(execute_IR),
-.memory(memory_IR),
-.wrback(wback_IR),
-.stall(stall)
-);
+
 
 assign LEDG[0] = clock;
 
 assign rst = ( KEY[0] == 0 ) ? 1 : 0 ;
-
-integer i;
 
 // Controlador de escrita da memoria de dados
 
@@ -251,9 +240,7 @@ always@(posedge clock) begin
     wback_IR   <= 32'b0;
 	 halt       <= 1'b1;
 	 PC         <= 10'b0;
-	 for (i=0;i<32;i=i+1) begin
-		sb[i] <= 0;
-	 end
+
   end
   else if(halt == 1'b1 && KEY[0] == 1) begin
     halt <= 1'b0;
@@ -274,55 +261,14 @@ always@(posedge clock) begin
 		halt <= 1'b1;
 	 end
 	 else 
-	 if(stall == 0) begin
+	 if begin
 	   PC <= PC + 1;
 		PC_decode <= PC;
 
       decode_IR <= out_mem_inst;
 		execute_IR <= decode_IR; 
 	 end
-	 else 
-	 if(stall == 1) begin
-	   PC <= PC;
-		PC_decode <= PC_decode;
-		decode_IR <= decode_IR;
-      execute_IR <= 0; 	
-	 end
 	 
-	 // SB Control
-	 if( wback_IR[31:26] == 6'b000000 && ( wback_IR[5:0] == 6'b100000 || wback_IR[5:0] == 6'b100010 ) ) begin
-	   sb[ wback_IR[15:11] ] <= 00;
-	 end else
-	 if( wback_IR[31:26] == 6'b001000 ) begin
-	   sb[ wback_IR[20:16] ] <= 00;
-	 end
-	 
-	 //execute
-	 if( execute_IR[31:26] == 6'b000000 && ( execute_IR[5:0] == 6'b100000 || execute_IR[5:0] == 6'b100010 ) ) begin
-	   sb[ execute_IR[15:11] ] <= 01;
-	 end else
-    if( execute_IR[31:26] == 6'b001000 ) begin
-	   sb[ execute_IR[20:16] ] <= 01;
-    end   
-	 
-    //memory
-	 if( memory_IR[31:26] == 6'b000000 && ( memory_IR[5:0] == 6'b100000 || memory_IR[5:0] == 6'b100010 ) ) begin
-	   if ( (execute_IR[31:26] == 6'b001000 && execute_IR[15:11] == memory_IR[15:11]) || (execute_IR[31:26] == 6'b001000 && execute_IR[20:16] == memory_IR[15:11]) ) begin
-		  sb[ memory_IR[15:11] ] <= 01;
-	   end
-	   else begin
-	     sb[ memory_IR[15:11] ] <= 10;
-	   end
-	 end else
-	 if( memory_IR[31:26] == 6'b001000 ) begin
-      if ( (execute_IR[31:26] == 6'b001000 && execute_IR[20:16] == memory_IR[20:16]) || ( (execute_IR[31:26] == 6'b001000 && execute_IR[15:11] == memory_IR[20:16]) ) ) begin
-		  sb[ memory_IR[20:16] ] <= 01;
-	   end
-	   else begin
-	     sb[ memory_IR[20:16] ] <= 10;
-	   end
-	 end
-	 ////////////////////////////////////////////////////////////////////
 	 
 	 PC_execute <= PC_decode;
     memory_IR <= execute_IR;
